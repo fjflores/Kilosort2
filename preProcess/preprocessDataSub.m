@@ -75,10 +75,19 @@ else
     DATA = zeros(NT, rez.ops.Nchan, Nbatch, 'int16');    
 end
 % load data into patches, filter, compute covariance
-if isfield(ops,'fslow')&&ops.fslow<ops.fs/2
-    [b1, a1] = butter(3, [ops.fshigh/ops.fs,ops.fslow/ops.fs]*2, 'bandpass');
+if isfield( ops, 'fslow' ) && ops.fslow < ops.fs / 2
+    fprintf('Time %3.0fs. Designing bandpass filter at [%g %g] Hz...\n',...
+        toc, ops.fshigh, ops.fslow );
+    filtType = 'bandpass';
+    [b1, a1] = butter( 3, [ ops.fshigh / ops.fs, ops.fslow / ops.fs ] * 2,...
+        filtType );
+    
 else
-    [b1, a1] = butter(3, ops.fshigh/ops.fs*2, 'high');
+    fprintf('Time %3.0fs. Designing highpass filter at %g Hz...\n',...
+        toc, ops.fshigh );
+    filtType = 'high';
+    [ b1, a1 ] = butter( 3, ops.fshigh / ops.fs * 2, filtType );
+    
 end
 
 for ibatch = 1:Nbatch
@@ -113,9 +122,12 @@ for ibatch = 1:Nbatch
     
     % CAR, common average referencing by median
     if getOr(ops, 'CAR', 1)
+        fprintf('Time %3.0fs. Performing CAR...\n', toc);
         dataRAW = dataRAW - median(dataRAW, 2);
+        
     end
     
+    fprintf( 'Time %3.0fs. %s filtering data...\n', toc, filtType )
     datr = filter(b1, a1, dataRAW);
     datr = flipud(datr);
     datr = filter(b1, a1, datr);
@@ -123,7 +135,7 @@ for ibatch = 1:Nbatch
     
     datr = datr(ioffset + (1:NT),:);
     
-    datr    = datr * Wrot;
+    datr = datr * Wrot;
     
     if ops.useRAM
         DATA(:,:,ibatch) = gather_try(datr);
